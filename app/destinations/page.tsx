@@ -6,6 +6,7 @@ import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import Image from "next/image"
+import BookingSheet from "@/components/BookingSheet"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,7 +70,30 @@ export default function DestinationsPage() {
     has_next: false,
     has_prev: false
   })
+  const [bookingSheet, setBookingSheet] = useState({
+    isOpen: false,
+    destinationId: 0,
+    destinationName: ''
+  })
   const router = useRouter()
+
+  // Open booking sheet
+  const openBookingSheet = (destinationId: number, destinationName: string) => {
+    setBookingSheet({
+      isOpen: true,
+      destinationId,
+      destinationName
+    })
+  }
+
+  // Close booking sheet
+  const closeBookingSheet = () => {
+    setBookingSheet({
+      isOpen: false,
+      destinationId: 0,
+      destinationName: ''
+    })
+  }
 
   // Carousel navigation functions
   const nextImage = (destinationId: number, totalImages: number) => {
@@ -893,16 +917,28 @@ export default function DestinationsPage() {
                       </div>
                     </div>
                     
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation() // Prevent card click
-                        router.push(`/destinations/${destination.id}`)
-                      }} 
-                      className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
-                    >
-                      Explore
-                      <ArrowRight className="h-4 w-4" />
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation() // Prevent card click
+                          openBookingSheet(destination.id, destination.name)
+                        }} 
+                        className="w-full flex items-center justify-center gap-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-green-700"
+                      >
+                        Book Now
+                      </button>
+                      
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation() // Prevent card click
+                          router.push(`/destinations/${destination.id}`)
+                        }} 
+                        className="w-full flex items-center justify-center gap-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${getTextThemeClasses()} hover:bg-muted"
+                      >
+                        Explore
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -968,6 +1004,14 @@ export default function DestinationsPage() {
           </div>
         )}
       </div>
+      
+      {/* Booking Sheet */}
+      <BookingSheet
+        isOpen={bookingSheet.isOpen}
+        onClose={closeBookingSheet}
+        destinationId={bookingSheet.destinationId}
+        destinationName={bookingSheet.destinationName}
+      />
     </div>
   )
 }

@@ -4,16 +4,41 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, MapPin, Star, Heart, Calendar, DollarSign, Users, Globe, Camera, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import BookingSheet from '@/components/BookingSheet'
 
 export default function DestinationDetailPage() {
   const params = useParams()
   const router = useRouter()
+
+  // Open booking sheet
+  const openBookingSheet = () => {
+    if (!destination) return
+    setBookingSheet({
+      isOpen: true,
+      destinationId: destination.id,
+      destinationName: destination.name
+    })
+  }
+
+  // Close booking sheet
+  const closeBookingSheet = () => {
+    setBookingSheet({
+      isOpen: false,
+      destinationId: 0,
+      destinationName: ''
+    })
+  }
   const { theme, systemTheme } = useTheme()
   const [destination, setDestination] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [bookingSheet, setBookingSheet] = useState({
+    isOpen: false,
+    destinationId: 0,
+    destinationName: ''
+  })
 
   useEffect(() => {
     setMounted(true)
@@ -374,7 +399,10 @@ export default function DestinationDetailPage() {
                   </div>
                 </div>
 
-                <button className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                <button 
+                  onClick={openBookingSheet}
+                  className="w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-green-700"
+                >
                   Book Now
                 </button>
 
@@ -441,6 +469,14 @@ export default function DestinationDetailPage() {
           </div>
         </div>
       )}
+      
+      {/* Booking Sheet */}
+      <BookingSheet
+        isOpen={bookingSheet.isOpen}
+        onClose={closeBookingSheet}
+        destinationId={bookingSheet.destinationId}
+        destinationName={bookingSheet.destinationName}
+      />
     </div>
   )
 }
