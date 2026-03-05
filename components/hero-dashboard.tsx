@@ -284,6 +284,17 @@ export function HeroDashboard() {
                       
                       <button
                         onClick={() => {
+                          router.push("/bookings")
+                          setProfileDropdownOpen(false)
+                        }}
+                        className={`flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors hover:bg-primary/10 ${getTextThemeClasses()}`}
+                      >
+                        <Calendar className="h-4 w-4" />
+                        My Bookings
+                      </button>
+                      
+                      <button
+                        onClick={() => {
                           router.push("/settings")
                           setProfileDropdownOpen(false)
                         }}
