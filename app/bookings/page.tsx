@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, X } from 'lucide-react'
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, X, CreditCard, Wallet } from 'lucide-react'
 import { ThemeSwitcher } from '@/components/theme-switcher'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { toast, Toaster } from 'sonner'
 
 export default function BookingsPage() {
   const router = useRouter()
@@ -32,6 +34,13 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [selectedCategory, setSelectedCategory] = useState('all') // 'all', 'destinations', 'resorts'
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [selectedPaymentBooking, setSelectedPaymentBooking] = useState<Booking | null>(null)
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentError, setPaymentError] = useState('')
+  const [paymentSuccess, setPaymentSuccess] = useState(false)
+  const [paymentIntentData, setPaymentIntentData] = useState<any>(null)
+  const [paymentConfirming, setPaymentConfirming] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -210,6 +219,183 @@ export default function BookingsPage() {
     }
   }
 
+  const openPaymentModal = (booking: Booking) => {
+    setSelectedPaymentBooking(booking)
+    setPaymentModalOpen(true)
+  }
+
+  const closePaymentModal = () => {
+    setPaymentModalOpen(false)
+    setSelectedPaymentBooking(null)
+  }
+
+  const handlePaymentMethod = async (method: string) => {
+    if (!selectedPaymentBooking) return
+    
+    console.log(`Selected payment method: ${method} for booking:`, selectedPaymentBooking.id)
+    
+    try {
+      setPaymentLoading(true)
+      setPaymentError('')
+      setPaymentSuccess(false)
+      
+      // Get token from localStorage
+      const token = localStorage.getItem('authToken')
+      
+      if (method === 'stripe') {
+        // Initiate Stripe payment flow
+        console.log('Initiating Stripe payment...')
+        
+        const response = await fetch(`http://localhost:8000/api/v1/payments/create-payment-intent?booking_id=${selectedPaymentBooking.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'accept': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          console.log('Stripe payment intent created:', data)
+          
+          // Here you would redirect to Stripe Checkout or handle the client secret
+          if (data.client_secret) {
+            // For Stripe, you would typically use the client_secret with Stripe.js
+            console.log('Stripe client secret received:', data.client_secret)
+            
+            // Store payment intent data and show confirmation screen
+            setPaymentIntentData(data)
+            setPaymentSuccess(true)
+          } else {
+            setPaymentError('No client secret received from server')
+          }
+        } else {
+          // Try to get error data, handle empty response
+          let errorData: any = {}
+          try {
+            const responseText = await response.text()
+            if (responseText) {
+              errorData = JSON.parse(responseText)
+            }
+          } catch (parseError) {
+            console.error('Failed to parse error response:', parseError)
+            errorData = { error: `Failed to create payment intent with status ${response.status}` }
+          }
+          
+          console.error('Failed to create Stripe payment intent:', errorData)
+          setPaymentError((errorData as any)?.error || 'Failed to create payment intent')
+        }
+      } else if (method === 'paypal') {
+        // Initiate PayPal payment flow
+        console.log('Initiating PayPal payment...')
+        
+        // TODO: Implement PayPal payment flow
+        // This would typically involve creating a PayPal order and redirecting to PayPal
+        setPaymentIntentData({ method: 'paypal', status: 'created' })
+        setPaymentSuccess(true)
+      }
+    } catch (error) {
+      console.error('Payment error:', error)
+      setPaymentError('Payment failed. Please try again.')
+    } finally {
+      setPaymentLoading(false)
+    }
+  }
+
+  const handleApprovePayment = async () => {
+    if (!selectedPaymentBooking || !paymentIntentData) return
+    
+    console.log('Payment approved:', paymentIntentData)
+    console.log('Booking details:', selectedPaymentBooking)
+    
+    try {
+      // Start payment processing
+      setPaymentConfirming(true)
+      
+      // Get token from localStorage
+      const token = localStorage.getItem('authToken')
+      
+      // Call payment confirmation endpoint
+      const response = await fetch('http://localhost:8000/api/v1/payments/confirm-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'accept': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify({
+          booking_id: selectedPaymentBooking.id,
+          payment_intent_id: paymentIntentData.payment_intent_id || paymentIntentData.id,
+          payment_method: paymentIntentData.client_secret ? 'stripe' : 'paypal',
+          amount: selectedPaymentBooking.total_price
+        })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Payment confirmed:', data)
+        
+        // Show success notification
+        toast.success('Payment successful! Your booking has been confirmed.', {
+          description: `Booking #${selectedPaymentBooking.id} for ${selectedPaymentBooking.destination_name}`,
+          duration: 5000
+        })
+        
+        // Close sheet and reset state
+        closePaymentModal()
+        setPaymentSuccess(false)
+        setPaymentIntentData(null)
+        setPaymentConfirming(false)
+        
+        // Refresh bookings to update status
+        // You might want to refetch bookings here
+        window.location.reload()
+        
+      } else {
+        // Try to get error data, handle empty response
+        let errorData: any = {}
+        try {
+          const responseText = await response.text()
+          if (responseText) {
+            errorData = JSON.parse(responseText)
+          }
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError)
+          errorData = { error: `Payment failed with status ${response.status}` }
+        }
+        
+        console.error('Payment confirmation failed:', errorData)
+        
+        // Show error notification
+        toast.error('Payment failed', {
+          description: errorData.error || errorData.message || 'Unable to complete payment. Please try again.',
+          duration: 5000
+        })
+      }
+      
+    } catch (error) {
+      console.error('Payment confirmation error:', error)
+      
+      // Show error notification
+      toast.error('Payment error', {
+        description: 'Network error occurred while processing payment. Please check your connection and try again.',
+        duration: 5000
+      })
+    } finally {
+      // Always stop processing spinner
+      setPaymentConfirming(false)
+    }
+  }
+
+  const handleCancelPayment = () => {
+    console.log('Payment cancelled')
+    // Reset to initial state to show payment options again
+    setPaymentSuccess(false)
+    setPaymentIntentData(null)
+    setPaymentError('')
+  }
+
   if (loading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${getBackgroundThemeClasses()}`}>
@@ -224,9 +410,10 @@ export default function BookingsPage() {
   }
 
   return (
-    <div className={`min-h-screen ${getBackgroundThemeClasses()}`}>
-      {/* Header */}
-      <header className={`sticky top-0 z-50 border-b backdrop-blur-lg ${getCardThemeClasses()}`}>
+    <>
+      <div className={`min-h-screen ${getBackgroundThemeClasses()}`}>
+        {/* Header */}
+        <header className={`sticky top-0 z-50 border-b backdrop-blur-lg ${getCardThemeClasses()}`}>
         <div className="mx-auto max-w-7xl px-4">
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
@@ -393,13 +580,22 @@ export default function BookingsPage() {
                     )}
                   </div>
 
-                  <div className="ml-4">
+                  <div className="ml-4 flex flex-col gap-2">
                     <button
                       onClick={() => setSelectedBooking(booking)}
                       className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${getTextThemeClasses()} hover:bg-primary/10`}
                     >
                       View Details
                     </button>
+                    
+                    {booking.status === 'pending' && (
+                      <button
+                        onClick={() => openPaymentModal(booking)}
+                        className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-green-700"
+                      >
+                        Proceed to Payment
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -512,6 +708,238 @@ export default function BookingsPage() {
           </div>
         </div>
       )}
-    </div>
+      
+      {/* Payment Sheet */}
+      <Sheet open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
+        <SheetContent className="w-[400px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                <DollarSign className="h-4 w-4 text-green-600" />
+              </div>
+              Complete Your Payment
+            </SheetTitle>
+          </SheetHeader>
+          
+          <div className="mt-6 space-y-6">
+            {!paymentSuccess ? (
+              <>
+                <div>
+                  <p className={`text-sm ${getTextThemeClasses()} opacity-70 mb-4`}>
+                    Choose your preferred payment method for {selectedPaymentBooking?.destination_name}
+                  </p>
+                  
+                  <div className={`rounded-lg border p-4 ${getCardThemeClasses()}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`${getTextThemeClasses()} font-medium`}>Booking Amount</span>
+                      <span className={`text-lg font-bold ${getTextThemeClasses()}`}>
+                        {selectedPaymentBooking?.total_price}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className={`${getTextThemeClasses()} opacity-70`}>Booking ID</span>
+                      <span className={`${getTextThemeClasses()} opacity-70`}>#{selectedPaymentBooking?.id}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={() => handlePaymentMethod('stripe')}
+                    disabled={paymentLoading}
+                    className={`w-full flex items-center justify-center gap-3 rounded-lg border px-4 py-3 font-medium transition-colors hover:bg-primary/10 ${
+                      paymentLoading ? 'opacity-50 cursor-not-allowed' : getTextThemeClasses()
+                    }`}
+                  >
+                    {paymentLoading ? (
+                      <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                    ) : (
+                      <CreditCard className="h-5 w-5" />
+                    )}
+                    {paymentLoading ? 'Processing...' : 'Pay with Stripe'}
+                  </button>
+                  
+                  <button
+                    onClick={() => handlePaymentMethod('paypal')}
+                    disabled={paymentLoading}
+                    className={`w-full flex items-center justify-center gap-3 rounded-lg border px-4 py-3 font-medium transition-colors hover:bg-primary/10 ${
+                      paymentLoading ? 'opacity-50 cursor-not-allowed' : getTextThemeClasses()
+                    }`}
+                  >
+                    {paymentLoading ? (
+                      <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                    ) : (
+                      <Wallet className="h-5 w-5" />
+                    )}
+                    {paymentLoading ? 'Processing...' : 'Pay with PayPal'}
+                  </button>
+                </div>
+
+                {paymentError && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                    <p className="text-sm text-red-700">{paymentError}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-6">
+                <div className="mx-auto h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                  <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className={`text-xl font-bold ${getTextThemeClasses()} mb-2`}>
+                  Payment Intent Ready!
+                </h3>
+                <p className={`${getTextThemeClasses()} opacity-70 mb-6`}>
+                  Your payment intent has been created. Please review the details below and confirm to proceed with payment.
+                </p>
+                
+                {/* Complete Booking Details */}
+                <div className={`rounded-lg border p-4 ${getCardThemeClasses()} mb-6 text-left`}>
+                  <h4 className={`font-semibold mb-4 ${getTextThemeClasses()}`}>Booking Details</h4>
+                  
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className={`${getTextThemeClasses()} opacity-70`}>Destination/Resort</span>
+                      <span className={`${getTextThemeClasses()} font-medium`}>
+                        {selectedPaymentBooking?.destination_name}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className={`${getTextThemeClasses()} opacity-70`}>Location</span>
+                      <span className={`${getTextThemeClasses()} font-medium`}>
+                        {selectedPaymentBooking?.city && selectedPaymentBooking?.country 
+                          ? `${selectedPaymentBooking.city}, ${selectedPaymentBooking.country}`
+                          : 'Location not specified'
+                        }
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className={`${getTextThemeClasses()} opacity-70`}>Booking ID</span>
+                      <span className={`${getTextThemeClasses()} font-medium`}>
+                        #{selectedPaymentBooking?.id}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className={`${getTextThemeClasses()} opacity-70`}>Category</span>
+                      <span className={`${getTextThemeClasses()} font-medium capitalize`}>
+                        {selectedPaymentBooking?.category}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className={`${getTextThemeClasses()} opacity-70`}>Check-in Date</span>
+                      <span className={`${getTextThemeClasses()} font-medium`}>
+                        {selectedPaymentBooking?.check_in_date || 'Not specified'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className={`${getTextThemeClasses()} opacity-70`}>Check-out Date</span>
+                      <span className={`${getTextThemeClasses()} font-medium`}>
+                        {selectedPaymentBooking?.check_out_date || 'Not specified'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className={`${getTextThemeClasses()} opacity-70`}>Number of Guests</span>
+                      <span className={`${getTextThemeClasses()} font-medium`}>
+                        {selectedPaymentBooking?.number_of_guests || '1'} guest(s)
+                      </span>
+                    </div>
+                    
+                    {selectedPaymentBooking?.special_requests && (
+                      <div>
+                        <span className={`${getTextThemeClasses()} opacity-70`}>Special Requests</span>
+                        <p className={`${getTextThemeClasses()} font-medium mt-1`}>
+                          {selectedPaymentBooking.special_requests}
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div className="border-t pt-3 mt-3">
+                      <div className="flex justify-between items-center">
+                        <span className={`${getTextThemeClasses()} font-semibold`}>Total Amount</span>
+                        <span className={`text-xl font-bold ${getTextThemeClasses()}`}>
+                          {selectedPaymentBooking?.total_price}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Payment Method Info */}
+                <div className={`rounded-lg border p-4 ${getCardThemeClasses()} mb-6 text-left`}>
+                  <h4 className={`font-semibold mb-2 ${getTextThemeClasses()}`}>Payment Method</h4>
+                  <div className="flex items-center gap-2">
+                    {paymentIntentData?.client_secret ? (
+                      <>
+                        <CreditCard className="h-5 w-5 text-blue-600" />
+                        <span className={`${getTextThemeClasses()}`}>Stripe</span>
+                      </>
+                    ) : paymentIntentData?.method === 'paypal' ? (
+                      <>
+                        <Wallet className="h-5 w-5 text-blue-600" />
+                        <span className={`${getTextThemeClasses()}`}>PayPal</span>
+                      </>
+                    ) : (
+                      <span className={`${getTextThemeClasses()}`}>Payment method selected</span>
+                    )}
+                  </div>
+                  {paymentIntentData?.payment_intent_id && (
+                    <p className={`text-sm ${getTextThemeClasses()} opacity-60 mt-1`}>
+                      Payment Intent ID: {paymentIntentData.payment_intent_id}
+                    </p>
+                  )}
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleCancelPayment}
+                    disabled={paymentConfirming}
+                    className={`flex-1 rounded-lg border px-4 py-3 font-medium transition-colors hover:bg-primary/10 ${
+                      paymentConfirming ? 'opacity-50 cursor-not-allowed' : getTextThemeClasses()
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleApprovePayment}
+                    disabled={paymentConfirming}
+                    className={`flex-1 rounded-lg px-4 py-3 font-medium text-white transition ${
+                      paymentConfirming 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-green-600 hover:bg-green-700'
+                    }`}
+                  >
+                    {paymentConfirming ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Processing...
+                      </div>
+                    ) : (
+                      'Approve & Pay'
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="text-center">
+              <p className={`text-xs ${getTextThemeClasses()} opacity-60`}>
+                By proceeding, you agree to the payment terms and conditions
+              </p>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+      </div>
+      <Toaster position="top-left" />
+    </>
   )
 }
