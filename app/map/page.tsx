@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { ArrowLeft, MapPin, Filter, Search, Hotel, Globe } from 'lucide-react'
+import { ArrowLeft, MapPin, Filter, Search, Globe } from 'lucide-react'
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import MapComponent from "@/components/MapComponent"
 import { getDestinationCoordinates, destinationCoordinates } from "@/utils/destinationCoordinates"
@@ -600,7 +600,6 @@ export default function MapViewPage() {
               {[
                 { name: "Dashboard", icon: Globe, href: "/dashboard" },
                 { name: "Destinations", icon: MapPin, href: "/destinations" },
-                { name: "Resorts", icon: Hotel, href: "/resorts" },
                 { name: "Map View", icon: MapPin, href: "/map" }
               ].map((item) => (
                 <button
@@ -749,11 +748,7 @@ export default function MapViewPage() {
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className={`h-12 w-12 rounded-full ${selectedLocation.type === 'resort' ? 'bg-blue-100' : 'bg-green-100'} flex items-center justify-center`}>
-                    {selectedLocation.type === 'resort' ? (
-                      <Hotel className={`h-6 w-6 text-blue-600`} />
-                    ) : (
-                      <Globe className={`h-6 w-6 text-green-600`} />
-                    )}
+                    <Globe className={`h-6 w-6 text-green-600`} />
                   </div>
                   <div className="flex-1">
                     <h3 className={`text-lg font-semibold ${getTextThemeClasses()}`}>

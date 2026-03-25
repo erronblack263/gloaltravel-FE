@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, MapPin, Calendar, Users, Star, ChevronRight, Menu, X, Plane, Hotel, Compass, User, Settings, LogOut, ChevronDown } from "lucide-react"
+import { Search, MapPin, Calendar, Users, Star, ChevronRight, Menu, X, Plane, Compass, User, Settings, LogOut, ChevronDown } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { ThemeSwitcher } from "@/components/theme-switcher"
@@ -223,9 +223,8 @@ export function HeroDashboard() {
               {[
                 { name: "Explore", icon: Compass, href: "/dashboard" },
                 { name: "Destinations", icon: MapPin, href: "/destinations" },
-                { name: "Resorts", icon: Hotel, href: "/resorts" },
+                { name: "Resorts", icon: Users, href: "/resorts" },
                 { name: "Map View", icon: MapPin, href: "/map" },
-                { name: "Hotels", icon: Hotel, href: "#" },
                 { name: "About", icon: Plane, href: "#" }
               ].map((item) => (
                 <button
@@ -344,7 +343,8 @@ export function HeroDashboard() {
                 {[
                   { name: "Explore", icon: Compass, href: "/dashboard" },
                   { name: "Destinations", icon: MapPin, href: "/destinations" },
-                  { name: "Hotels", icon: Hotel, href: "#" },
+                  { name: "Resorts", icon: Users, href: "/resorts" },
+                  { name: "Map View", icon: MapPin, href: "/map" },
                   { name: "About", icon: Plane, href: "#" }
                 ].map((item) => (
                   <button

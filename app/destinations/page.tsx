@@ -509,7 +509,6 @@ export default function DestinationsPage() {
               {[
                 { name: "Explore", icon: MapPin, href: "/dashboard" },
                 { name: "Destinations", icon: MapPin, href: "/destinations" },
-                { name: "Hotels", icon: MapPin, href: "#" },
                 { name: "About", icon: MapPin, href: "#" }
               ].map((item) => (
                 <button
