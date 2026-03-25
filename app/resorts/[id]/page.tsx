@@ -2,21 +2,21 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, MapPin, Star, Heart, Calendar, DollarSign, Users, Globe, Camera, X } from 'lucide-react'
+import { ArrowLeft, MapPin, Star, Heart, Calendar, DollarSign, Users, Wifi, Car, Coffee, Dumbbell, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import BookingSheet from '@/components/BookingSheet'
 
-export default function DestinationDetailPage() {
+export default function ResortDetailPage() {
   const params = useParams()
   const router = useRouter()
 
   // Open booking sheet
   const openBookingSheet = () => {
-    if (!destination) return
+    if (!resort) return
     setBookingSheet({
       isOpen: true,
-      destinationId: destination.id,
-      destinationName: destination.name
+      destinationId: resort.id,
+      destinationName: resort.name
     })
   }
 
@@ -28,8 +28,9 @@ export default function DestinationDetailPage() {
       destinationName: ''
     })
   }
+
   const { theme, systemTheme } = useTheme()
-  const [destination, setDestination] = useState<any>(null)
+  const [resort, setResort] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -107,7 +108,7 @@ export default function DestinationDetailPage() {
   }
 
   useEffect(() => {
-    const fetchDestination = async () => {
+    const fetchResort = async () => {
       if (!params.id) return
       
       try {
@@ -125,8 +126,8 @@ export default function DestinationDetailPage() {
           headers['Authorization'] = `Bearer ${token}`
         }
         
-        // Fetch specific destination by ID from FastAPI backend
-        const response = await fetch(`http://localhost:8000/api/v1/destinations/${params.id}`, {
+        // Fetch specific resort by ID from FastAPI backend
+        const response = await fetch(`http://localhost:8000/api/v1/resorts/${params.id}`, {
           headers
         })
         
@@ -135,191 +136,188 @@ export default function DestinationDetailPage() {
           
           if (data && data.id) {
             // Transform the data to match frontend expectations
-            const transformedDestination = {
+            const transformedResort = {
               id: data.id,
               name: data.name,
               location: `${data.city}, ${data.country}`,
-              rating: 4.5 + Math.random() * 0.5, // Generate random rating between 4.5-5.0
-              price: data.entry_fee === '0.00' ? 'Free' : `$${data.entry_fee}`,
-              duration: `${3 + Math.floor(Math.random() * 5)} days`, // Random duration 3-7 days
+              rating: 4.0 + Math.random() * 1.0, // Generate random rating between 4.0-5.0
+              price: data.price_per_night ? `$${data.price_per_night}/night` : '$200/night',
+              duration: 'Flexible stay',
               image: data.images && data.images.length > 0 && typeof data.images[0] === 'string' && data.images[0].startsWith('http')
                 ? data.images[0].replace('w=800', 'w=1200').replace('h=600', 'h=800')
                 : data.images && data.images.length > 0 && typeof data.images[0] === 'string'
                   ? `http://localhost:8000${data.images[0]}`
-                  : getDestinationMainImage(data.name)[0] || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop',
-              description: `Experience the beauty of ${data.name}, ${data.city}, ${data.country}`,
-              highlights: [data.type, `${data.city}`, `${data.country}`],
+                  : getResortMainImage(data.name)[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&h=800&fit=crop',
+              description: `Experience luxury and comfort at ${data.name}, a premier resort in ${data.city}, ${data.country}. Enjoy world-class amenities and exceptional service.`,
+              highlights: [data.star_rating ? `${data.star_rating} Stars` : '5 Stars', `${data.city}`, 'Luxury Resort'],
               saved: false,
-              type: data.type,
+              type: 'resort',
               city: data.city,
               country: data.country,
-              entry_fee: data.entry_fee
+              star_rating: data.star_rating,
+              price_per_night: data.price_per_night,
+              amenities: data.amenities || ['WiFi', 'Pool', 'Spa', 'Restaurant', 'Gym']
             }
             
-            setDestination(transformedDestination)
+            setResort(transformedResort)
             
             // Check if saved
-            const savedDestinations = JSON.parse(localStorage.getItem('savedDestinations') || '[]')
-            setSaved(savedDestinations.includes(transformedDestination.id))
+            const savedResorts = JSON.parse(localStorage.getItem('savedResorts') || '[]')
+            setSaved(savedResorts.includes(transformedResort.id))
           } else {
-            console.error('Invalid destination data received')
+            console.error('Invalid resort data received')
           }
         } else {
-          console.log('Destinations API not available, using fallback data')
+          console.log('Resorts API not available, using fallback data')
           // Use fallback data when API is not available
-          const fallbackDestinations = [
+          const fallbackResorts = [
             {
-              id: 1,
-              name: "Northern Lights",
-              city: "Tromsø",
-              country: "Norway",
-              type: "adventure",
-              entry_fee: "2500.00",
-              description: "Experience the magical Aurora Borealis in one of the world's best viewing locations. This winter wonderland offers stunning natural light displays, cozy accommodations, and authentic Arctic experiences.",
-              highlights: ["Aurora viewing", "Dog sledding", "Reindeer sledding", "Snowshoeing", "Ice fishing"]
-            },
-            {
-              id: 6,
-              name: "Norway Fjord",
-              city: "Bergen",
-              country: "Norway",
-              type: "adventure",
-              entry_fee: "2800.00",
-              description: "Discover the breathtaking beauty of Norway's majestic fjords. Cruise through crystal-clear waters surrounded by towering cliffs, waterfalls, and charming coastal villages.",
-              highlights: ["Fjord cruising", "Waterfall viewing", "Mountain hiking", "Coastal villages", "Midnight sun"]
-            },
-            {
-              id: 2,
-              name: "Maldives Paradise Island",
-              city: "Malé",
+              id: 1001,
+              name: "Tropical Paradise Resort",
+              city: "Maldives",
               country: "Maldives",
-              type: "beach",
-              entry_fee: "3500.00",
-              description: "Discover crystal-clear waters, pristine beaches, and luxurious overwater bungalows in this tropical paradise. Perfect for relaxation, diving, and water sports.",
-              highlights: ["Snorkeling", "Diving", "Island hopping", "Dolphin watching", "Spa treatments"]
+              star_rating: 5,
+              price_per_night: "450.00",
+              description: "Experience ultimate luxury in this stunning overwater villa resort. Crystal-clear waters, pristine beaches, and world-class amenities await.",
+              highlights: ["5 Stars", "Overwater Villas", "Private Beach", "World-Class Spa", "Fine Dining"],
+              amenities: ["WiFi", "Pool", "Spa", "Restaurant", "Gym", "Water Sports", "Bar", "Concierge"]
             },
             {
-              id: 3,
-              name: "Santorini, Greece",
+              id: 1002,
+              name: "Mountain View Resort",
+              city: "Swiss Alps",
+              country: "Switzerland",
+              star_rating: 4,
+              price_per_night: "320.00",
+              description: "Nestled in the heart of the Swiss Alps, this resort offers breathtaking mountain views, world-class skiing, and luxurious alpine accommodations.",
+              highlights: ["4 Stars", "Mountain Views", "Ski-in/Ski-out", "Alpine Spa", "Fine Dining"],
+              amenities: ["WiFi", "Pool", "Spa", "Restaurant", "Gym", "Ski Rental", "Fireplace", "Bar"]
+            },
+            {
+              id: 1003,
+              name: "Beachfront Luxury Resort",
               city: "Santorini",
               country: "Greece",
-              type: "cultural",
-              entry_fee: "2200.00",
-              description: "Explore the stunning white-washed buildings, blue-domed churches, and breathtaking sunsets of this iconic Greek island. Experience authentic Mediterranean culture and cuisine.",
-              highlights: ["Wine tasting", "Sunset viewing", "Beach hopping", "Archaeological sites", "Boat tours"]
+              star_rating: 5,
+              price_per_night: "380.00",
+              description: "Perched on the cliffs of Santorini, this luxury resort offers stunning caldera views, infinity pools, and authentic Greek hospitality.",
+              highlights: ["5 Stars", "Caldera Views", "Infinity Pool", "Sunset Terrace", "Greek Cuisine"],
+              amenities: ["WiFi", "Pool", "Spa", "Restaurant", "Gym", "Beach Access", "Bar", "Concierge"]
             },
             {
-              id: 4,
-              name: "Swiss Alps - Interlaken",
-              city: "Interlaken",
-              country: "Switzerland",
-              type: "mountain",
-              entry_fee: "2800.00",
-              description: "Adventure awaits in the heart of the Swiss Alps. Experience breathtaking mountain scenery, world-class skiing, and charming alpine villages.",
-              highlights: ["Skiing", "Mountain hiking", "Scenic trains", "Alpine villages", "Paragliding"]
-            },
-            {
-              id: 5,
-              name: "Tokyo, Japan",
+              id: 1004,
+              name: "Urban Luxury Hotel",
               city: "Tokyo",
               country: "Japan",
-              type: "cultural",
-              entry_fee: "2000.00",
-              description: "Immerse yourself in the perfect blend of ancient tradition and cutting-edge technology. From serene temples to neon-lit streets, Tokyo offers endless discoveries.",
-              highlights: ["Temple visits", "Cherry blossoms", "Mount Fuji views", "Japanese cuisine", "Shopping districts"]
+              star_rating: 4,
+              price_per_night: "280.00",
+              description: "Experience modern luxury in the heart of Tokyo. This urban resort combines contemporary design with traditional Japanese hospitality.",
+              highlights: ["4 Stars", "City Views", "Modern Design", "Japanese Cuisine", "Central Location"],
+              amenities: ["WiFi", "Pool", "Spa", "Restaurant", "Gym", "Business Center", "Bar", "Concierge"]
+            },
+            {
+              id: 1005,
+              name: "Safari Lodge Resort",
+              city: "Kenya",
+              country: "Kenya",
+              star_rating: 5,
+              price_per_night: "520.00",
+              description: "Experience the magic of African wildlife from this luxury safari lodge. Guided tours, luxury accommodations, and unforgettable sunsets.",
+              highlights: ["5 Stars", "Wildlife Views", "Safari Tours", "Luxury Tents", "Bush Dining"],
+              amenities: ["WiFi", "Pool", "Spa", "Restaurant", "Bar", "Safari Tours", "Game Drives", "Concierge"]
             }
           ]
 
-          const found = fallbackDestinations.find(d => d.id.toString() === params.id)
+          const found = fallbackResorts.find(r => r.id.toString() === params.id)
           if (found) {
-            const transformedDestination = {
+            const transformedResort = {
               id: found.id,
               name: found.name,
               location: `${found.city}, ${found.country}`,
-              rating: 4.5 + Math.random() * 0.5,
-              price: found.entry_fee === '0.00' ? 'Free' : `$${found.entry_fee}`,
-              duration: `${3 + Math.floor(Math.random() * 5)} days`,
-              image: (() => {
-                const possibleImages = getDestinationMainImage(found.name)
-                const selectedImage = possibleImages[0] || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop'
-                console.log('🎯 Selected image for', found.name, ':', selectedImage)
-                return selectedImage
-              })(),
+              rating: 4.0 + Math.random() * 1.0,
+              price: `$${found.price_per_night}/night`,
+              duration: 'Flexible stay',
+              image: getResortMainImage(found.name)[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&h=800&fit=crop',
               description: found.description,
               highlights: found.highlights,
               saved: false,
-              type: found.type,
+              type: 'resort',
               city: found.city,
               country: found.country,
-              entry_fee: found.entry_fee
+              star_rating: found.star_rating,
+              price_per_night: found.price_per_night,
+              amenities: found.amenities
             }
             
-            setDestination(transformedDestination)
+            setResort(transformedResort)
             
             // Check if saved
-            const savedDestinations = JSON.parse(localStorage.getItem('savedDestinations') || '[]')
-            setSaved(savedDestinations.includes(transformedDestination.id))
+            const savedResorts = JSON.parse(localStorage.getItem('savedResorts') || '[]')
+            setSaved(savedResorts.includes(transformedResort.id))
           } else {
-            console.error('Destination not found in fallback data')
+            console.error('Resort not found in fallback data')
           }
         }
       } catch (error) {
-        console.error('Error fetching destination:', error)
+        console.error('Error fetching resort:', error)
         console.log('Using fallback data due to error')
         
         // Use fallback data when there's an error
-        const fallbackDestination = {
-          id: parseInt(params.id as string) || 1,
-          name: "Amazing Destination",
+        const fallbackResort = {
+          id: parseInt(params.id as string) || 1001,
+          name: "Luxury Resort",
           city: "Unknown",
           country: "Unknown",
-          type: "adventure",
-          entry_fee: "1500.00",
-          description: "Experience an unforgettable journey to this amazing destination. Discover unique landscapes, rich culture, and incredible adventures.",
-          highlights: ["Sightseeing", "Cultural experiences", "Local cuisine", "Adventure activities"]
+          star_rating: 4,
+          price_per_night: "300.00",
+          description: "Experience luxury and comfort at this beautiful resort. Enjoy world-class amenities, exceptional service, and unforgettable memories.",
+          highlights: ["4 Stars", "Luxury Accommodations", "World-Class Service", "Fine Dining", "Spa & Wellness"],
+          amenities: ["WiFi", "Pool", "Spa", "Restaurant", "Gym", "Bar", "Concierge"]
         }
         
-        const transformedDestination = {
-          id: fallbackDestination.id,
-          name: fallbackDestination.name,
-          location: `${fallbackDestination.city}, ${fallbackDestination.country}`,
+        const transformedResort = {
+          id: fallbackResort.id,
+          name: fallbackResort.name,
+          location: `${fallbackResort.city}, ${fallbackResort.country}`,
           rating: 4.5,
-          price: `$${fallbackDestination.entry_fee}`,
-          duration: "5 days",
-          image: getDestinationMainImage(fallbackDestination.name)[0] || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop',
-          description: fallbackDestination.description,
-          highlights: fallbackDestination.highlights,
+          price: `$${fallbackResort.price_per_night}/night`,
+          duration: 'Flexible stay',
+          image: getResortMainImage(fallbackResort.name)[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&h=800&fit=crop',
+          description: fallbackResort.description,
+          highlights: fallbackResort.highlights,
           saved: false,
-          type: fallbackDestination.type,
-          city: fallbackDestination.city,
-          country: fallbackDestination.country,
-          entry_fee: fallbackDestination.entry_fee
+          type: 'resort',
+          city: fallbackResort.city,
+          country: fallbackResort.country,
+          star_rating: fallbackResort.star_rating,
+          price_per_night: fallbackResort.price_per_night,
+          amenities: fallbackResort.amenities
         }
         
-        setDestination(transformedDestination)
+        setResort(transformedResort)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchDestination()
+    fetchResort()
   }, [params.id])
 
   const toggleSave = () => {
-    if (!destination) return
+    if (!resort) return
     
-    const savedDestinations = JSON.parse(localStorage.getItem('savedDestinations') || '[]')
-    const newSaved = savedDestinations.includes(destination.id)
-      ? savedDestinations.filter((id: number) => id !== destination.id)
-      : [...savedDestinations, destination.id]
+    const savedResorts = JSON.parse(localStorage.getItem('savedResorts') || '[]')
+    const newSaved = savedResorts.includes(resort.id)
+      ? savedResorts.filter((id: number) => id !== resort.id)
+      : [...savedResorts, resort.id]
     
-    localStorage.setItem('savedDestinations', JSON.stringify(newSaved))
+    localStorage.setItem('savedResorts', JSON.stringify(newSaved))
     setSaved(!saved)
   }
 
-  // Create gallery images array with destination-specific images from static folder
-  const getDestinationGallery = (destinationName: string) => {
-    // Convert destination name to format suitable for image files
+  // Create gallery images array with resort-specific images from static folder
+  const getResortGallery = (resortName: string) => {
+    // Convert resort name to format suitable for image files
     const formatName = (name: string) => {
       return name
         .replace(/[^a-zA-Z0-9\s_]/g, '') // Remove special characters except underscore and space
@@ -327,9 +325,9 @@ export default function DestinationDetailPage() {
         .replace(/^(.)/, (match) => match.toUpperCase()) // Capitalize first letter
     }
     
-    const formattedName = formatName(destinationName)
+    const formattedName = formatName(resortName)
     
-    // Generate image paths based on the pattern: [DestinationName]_0, [DestinationName]_1, [DestinationName]_2
+    // Generate image paths based on the pattern: [ResortName]_0, [ResortName]_1, [ResortName]_2
     const galleryImages = [
       `/static/images/${formattedName}_0.jpg`,
       `/static/images/${formattedName}_1.jpg`,
@@ -339,8 +337,8 @@ export default function DestinationDetailPage() {
     return galleryImages
   }
 
-  const getDestinationMainImage = (destinationName: string) => {
-    // Convert destination name to format suitable for image files
+  const getResortMainImage = (resortName: string) => {
+    // Convert resort name to format suitable for image files
     const formatName = (name: string) => {
       return name
         .replace(/[^a-zA-Z0-9\s_]/g, '') // Remove special characters except underscore and space
@@ -348,37 +346,23 @@ export default function DestinationDetailPage() {
         .replace(/^(.)/, (match) => match.toUpperCase()) // Capitalize first letter
     }
     
-    const formattedName = formatName(destinationName)
+    const formattedName = formatName(resortName)
     
     // Try multiple naming patterns for the main image
     const possibleNames = [
       `${formattedName}_0.jpg`,
       `${formattedName}.jpg`,
       `${formattedName.replace(/_/g, '')}_0.jpg`,
-      `${formattedName.replace(/_/g, '')}.jpg`,
-      // Handle specific cases with spaces
-      `${destinationName.toLowerCase()} 1.jpg`,
-      `${destinationName.toLowerCase()}.jpg`,
-      `${destinationName.toLowerCase()}.avif`,
-      `${destinationName.toLowerCase()} 1.avif`,
-      // Handle variations
-      `${formattedName.toLowerCase()} 1.jpg`,
-      `${formattedName.toLowerCase()}.jpg`,
-      `${formattedName.toLowerCase()}.avif`,
-      `${formattedName.toLowerCase()} 1.avif`
+      `${formattedName.replace(/_/g, '')}.jpg`
     ]
-    
-    console.log('🖼️ Image Debug for:', destinationName)
-    console.log('Formatted name:', formattedName)
-    console.log('Possible image paths:', possibleNames)
     
     return possibleNames
   }
 
-  const galleryImages = destination ? getDestinationGallery(destination.name) : []
+  const galleryImages = resort ? getResortGallery(resort.name) : []
   
-  // Debug: Log destination name and gallery images
-  console.log('Destination:', destination?.name)
+  // Debug: Log resort name and gallery images
+  console.log('Resort:', resort?.name)
   console.log('Gallery Images:', galleryImages)
 
   if (loading) {
@@ -387,25 +371,25 @@ export default function DestinationDetailPage() {
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           <p className={`mt-4 ${getTextThemeClasses()} opacity-70`}>
-            Loading destination details...
+            Loading resort details...
           </p>
         </div>
       </div>
     )
   }
 
-  if (!destination) {
+  if (!resort) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${getBackgroundThemeClasses()}`}>
         <div className="text-center">
           <h1 className={`text-2xl font-bold ${getTextThemeClasses()} mb-4`}>
-            Destination Not Found
+            Resort Not Found
           </h1>
           <button
-            onClick={() => router.push('/destinations')}
+            onClick={() => router.push('/resorts')}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
           >
-            Back to Destinations
+            Back to Resorts
           </button>
         </div>
       </div>
@@ -417,8 +401,8 @@ export default function DestinationDetailPage() {
       {/* Hero Section with Image */}
       <div className="relative h-96 overflow-hidden">
         <img
-          src={destination.image}
-          alt={destination.name}
+          src={resort.image}
+          alt={resort.name}
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
@@ -430,7 +414,7 @@ export default function DestinationDetailPage() {
               router.back()
             } catch (error) {
               console.error('Router.back failed:', error)
-              router.push('/destinations')
+              router.push('/resorts')
             }
           }}
           className={`absolute top-4 left-4 rounded-full p-2 backdrop-blur-sm transition-colors hover:bg-white/20 ${getCardThemeClasses()}`}
@@ -454,16 +438,16 @@ export default function DestinationDetailPage() {
         <div className="absolute bottom-0 left-0 right-0 p-8">
           <div className="max-w-4xl mx-auto">
             <h1 className={`text-4xl font-bold text-white mb-2`}>
-              {destination.name}
+              {resort.name}
             </h1>
             <div className="flex items-center gap-4 text-white/90">
               <div className="flex items-center gap-1">
                 <MapPin className="h-4 w-4" />
-                <span>{destination.location}</span>
+                <span>{resort.location}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                <span>{destination.rating}</span>
+                <span>{resort.rating}</span>
               </div>
             </div>
           </div>
@@ -478,10 +462,10 @@ export default function DestinationDetailPage() {
             {/* Description */}
             <div className={`rounded-xl border p-6 ${getCardThemeClasses()}`}>
               <h2 className={`text-xl font-semibold mb-4 ${getTextThemeClasses()}`}>
-                About This Destination
+                About This Resort
               </h2>
               <p className={`${getSubtleTextClasses()} leading-relaxed`}>
-                {destination.description}
+                {resort.description}
               </p>
             </div>
 
@@ -491,12 +475,32 @@ export default function DestinationDetailPage() {
                 Highlights
               </h2>
               <div className="grid gap-3 sm:grid-cols-2">
-                {destination.highlights?.map((highlight: string, index: number) => (
+                {resort.highlights?.map((highlight: string, index: number) => (
                   <div key={index} className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-primary"></div>
                     <span className={`${getSubtleTextClasses()}`}>
                       {highlight}
                     </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Amenities */}
+            <div className={`rounded-xl border p-6 ${getCardThemeClasses()}`}>
+              <h2 className={`text-xl font-semibold mb-4 ${getTextThemeClasses()}`}>
+                Amenities
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {(resort.amenities || ['WiFi', 'Pool', 'Spa', 'Restaurant', 'Gym', 'Bar']).map((amenity: string, index: number) => (
+                  <div key={index} className="flex items-center gap-2">
+                    {amenity.toLowerCase().includes('wifi') && <Wifi className="h-4 w-4 text-blue-500" />}
+                    {amenity.toLowerCase().includes('pool') && <div className="h-4 w-4 rounded-full bg-blue-500"></div>}
+                    {amenity.toLowerCase().includes('parking') || amenity.toLowerCase().includes('car') ? <Car className="h-4 w-4 text-blue-500" /> : null}
+                    {amenity.toLowerCase().includes('coffee') || amenity.toLowerCase().includes('restaurant') ? <Coffee className="h-4 w-4 text-blue-500" /> : null}
+                    {amenity.toLowerCase().includes('gym') || amenity.toLowerCase().includes('fitness') ? <Dumbbell className="h-4 w-4 text-blue-500" /> : null}
+                    {!['wifi', 'pool', 'parking', 'car', 'coffee', 'restaurant', 'gym', 'fitness'].some(keyword => amenity.toLowerCase().includes(keyword)) && <div className="h-4 w-4 rounded-full bg-blue-500"></div>}
+                    <span className={`${getSubtleTextClasses()}`}>{amenity}</span>
                   </div>
                 ))}
               </div>
@@ -516,11 +520,11 @@ export default function DestinationDetailPage() {
                   >
                     <img
                       src={image}
-                      alt={`${destination.name} - Image ${index + 1}`}
+                      alt={`${resort.name} - Image ${index + 1}`}
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                      <Camera className="h-8 w-8 text-white" />
+                      <X className="h-8 w-8 text-white" />
                     </div>
                   </div>
                 ))}
@@ -535,10 +539,10 @@ export default function DestinationDetailPage() {
               <div className="space-y-4">
                 <div>
                   <div className={`text-2xl font-bold ${getTextThemeClasses()}`}>
-                    {destination.price}
+                    {resort.price}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    per person
+                    per night
                   </div>
                 </div>
 
@@ -546,19 +550,19 @@ export default function DestinationDetailPage() {
                   <div className="flex items-center gap-3">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className={`${getSubtleTextClasses()}`}>
-                      {destination.duration}
+                      Flexible stay
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     <span className={`${getSubtleTextClasses()}`}>
-                      2-10 travelers
+                      1-10 guests
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    <Star className="h-4 w-4 text-muted-foreground" />
                     <span className={`${getSubtleTextClasses()}`}>
-                      Available year-round
+                      {resort.star_rating || '5'} Star Resort
                     </span>
                   </div>
                 </div>
@@ -585,19 +589,25 @@ export default function DestinationDetailPage() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Type</span>
                   <span className={`${getSubtleTextClasses()} capitalize`}>
-                    {destination.highlights?.[0] || 'Adventure'}
+                    Luxury Resort
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Difficulty</span>
+                  <span className="text-muted-foreground">Rating</span>
                   <span className={`${getSubtleTextClasses()}`}>
-                    Moderate
+                    {resort.star_rating || '5'} Stars
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Best Time</span>
+                  <span className="text-muted-foreground">Check-in</span>
                   <span className={`${getSubtleTextClasses()}`}>
-                    Year-round
+                    3:00 PM
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Check-out</span>
+                  <span className={`${getSubtleTextClasses()}`}>
+                    11:00 AM
                   </span>
                 </div>
               </div>
@@ -624,7 +634,7 @@ export default function DestinationDetailPage() {
             </button>
             <img
               src={selectedImage}
-              alt={`${destination.name} - Enlarged view`}
+              alt={`${resort.name} - Enlarged view`}
               className="max-w-full max-h-full object-contain rounded-lg"
             />
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded-full">

@@ -224,6 +224,7 @@ export function HeroDashboard() {
                 { name: "Explore", icon: Compass, href: "/dashboard" },
                 { name: "Destinations", icon: MapPin, href: "/destinations" },
                 { name: "Resorts", icon: Hotel, href: "/resorts" },
+                { name: "Map View", icon: MapPin, href: "/map" },
                 { name: "Hotels", icon: Hotel, href: "#" },
                 { name: "About", icon: Plane, href: "#" }
               ].map((item) => (

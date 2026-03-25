@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, MapPin, Star, Calendar, Users, Filter, ChevronDown, Heart, ArrowRight } from "lucide-react"
+import { Search, MapPin, Star, Calendar, Users, Filter, ChevronDown, Heart, ArrowRight, Map } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import Image from "next/image"
 import BookingSheet from "@/components/BookingSheet"
+import { getDestinationCoordinates } from "@/utils/destinationCoordinates"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +51,8 @@ export default function DestinationsPage() {
   const { theme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [showCoordinateModal, setShowCoordinateModal] = useState(false)
+  const [modalMessage, setModalMessage] = useState('')
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [selectedCountry, setSelectedCountry] = useState("All")
   const [selectedCity, setSelectedCity] = useState("")
@@ -153,13 +156,41 @@ export default function DestinationsPage() {
 
   // Get all images for a destination
   const getDestinationImages = (destination: any) => {
-    // Generate 3 images based on destination name
+    // Convert destination name to format suitable for image files
+    const formatName = (name: string) => {
+      return name
+        .replace(/[^a-zA-Z0-9\s_]/g, '') // Remove special characters except underscore and space
+        .replace(/\s+/g, '_') // Replace spaces with underscores
+        .replace(/^(.)/, (match) => match.toUpperCase()) // Capitalize first letter
+    }
+    
+    const formattedName = formatName(destination.name)
     const baseName = destination.name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_')
-    return [
-      `http://localhost:8000/static/images/${baseName}_0.jpg`,
-      `http://localhost:8000/static/images/${baseName}_1.jpg`, 
-      `http://localhost:8000/static/images/${baseName}_2.jpg`
+    
+    // Try multiple naming patterns
+    const possiblePatterns = [
+      // Standard patterns
+      `/static/images/${formattedName}_0.jpg`,
+      `/static/images/${formattedName}_1.jpg`, 
+      `/static/images/${formattedName}_2.jpg`,
+      // Lowercase patterns
+      `/static/images/${baseName}_0.jpg`,
+      `/static/images/${baseName}_1.jpg`, 
+      `/static/images/${baseName}_2.jpg`,
+      // Handle spaces (like "norway fjord 1.jpg")
+      `/static/images/${destination.name.toLowerCase()} 1.jpg`,
+      `/static/images/${destination.name.toLowerCase()}.jpg`,
+      `/static/images/${destination.name.toLowerCase()}.avif`,
+      // Fallback to generic images
+      `/static/images/placeholder-destination.jpg`
     ]
+    
+    console.log('🖼️ Destinations Page Debug for:', destination.name)
+    console.log('Formatted name:', formattedName)
+    console.log('Base name:', baseName)
+    console.log('Possible patterns:', possiblePatterns)
+    
+    return possiblePatterns.slice(0, 3) // Return first 3 images
   }
 
   useEffect(() => {
@@ -938,6 +969,56 @@ export default function DestinationsPage() {
                         Explore
                         <ArrowRight className="h-4 w-4" />
                       </button>
+                      
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation() // Prevent card click
+                          
+                          // Check for coordinates using multiple methods
+                          const apiCoordinates = (destination.latitude && destination.longitude) ||
+                                             (destination.lat && destination.lng) ||
+                                             (destination.coordinates)
+                          
+                          const mappedCoordinates = getDestinationCoordinates(destination.name)
+                          const hasCoordinates = apiCoordinates || mappedCoordinates
+                          
+                          if (!hasCoordinates) {
+                            console.warn('Destination missing coordinates:', destination.name)
+                            console.log('Available fields:', Object.keys(destination))
+                            console.log('Mapped coordinates check:', mappedCoordinates)
+                            
+                            // Show modal with user-friendly message
+                            setModalMessage(`Map coordinates are not available for "${destination.name}". This destination cannot be displayed on the map.`)
+                            setShowCoordinateModal(true)
+                            return
+                          }
+                          
+                          // Use mapped coordinates if API doesn't have them
+                          const coords = mappedCoordinates || {
+                            lat: parseFloat(destination.latitude || destination.lat || (destination.coordinates ? destination.coordinates.split(',')[0] : '0')),
+                            lng: parseFloat(destination.longitude || destination.lng || (destination.coordinates ? destination.coordinates.split(',')[1] : '0'))
+                          }
+                          
+                          // Pass destination data to map with coordinates
+                          const mapData = {
+                            id: destination.id,
+                            name: destination.name,
+                            latitude: coords.lat.toString(),
+                            longitude: coords.lng.toString(),
+                            type: 'destination',
+                            address: destination.address,
+                            city: destination.city,
+                            country: destination.country
+                          }
+                          // Store in sessionStorage for map to use
+                          sessionStorage.setItem('mapFocusLocation', JSON.stringify(mapData))
+                          router.push('/map')
+                        }} 
+                        className="w-full flex items-center justify-center gap-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${getTextThemeClasses()} hover:bg-muted"
+                      >
+                        <Map className="h-4 w-4" />
+                        View on Map
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1012,6 +1093,46 @@ export default function DestinationsPage() {
         destinationId={bookingSheet.destinationId}
         destinationName={bookingSheet.destinationName}
       />
+
+      {/* Coordinates Missing Modal */}
+      {showCoordinateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className={`mx-4 max-w-md rounded-lg border p-6 ${getCardThemeClasses()}`}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                <MapPin className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div>
+                <h3 className={`text-lg font-semibold ${getTextThemeClasses()}`}>
+                  Map Location Unavailable
+                </h3>
+              </div>
+            </div>
+            
+            <p className={`${getTextThemeClasses()} mb-6`}>
+              {modalMessage}
+            </p>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCoordinateModal(false)}
+                className={`flex-1 rounded-lg border px-4 py-2 font-medium transition-colors ${getTextThemeClasses()} hover:bg-muted`}
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setShowCoordinateModal(false)
+                  router.push('/destinations')
+                }}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                Browse Other Destinations
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

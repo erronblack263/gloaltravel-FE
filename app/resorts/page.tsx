@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Search, MapPin, Star, Heart, Calendar, Users, DollarSign, Globe, Filter, X, ArrowLeft, Home } from 'lucide-react'
+import { Search, MapPin, Star, Heart, Calendar, Users, DollarSign, Globe, Filter, X, ArrowLeft, Home, Map } from 'lucide-react'
 import { ThemeSwitcher } from '@/components/theme-switcher'
 import BookingSheet from '@/components/BookingSheet'
 
@@ -14,6 +14,8 @@ export default function ResortsPage() {
   const [resorts, setResorts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [showCoordinateModal, setShowCoordinateModal] = useState(false)
+  const [modalMessage, setModalMessage] = useState('')
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [selectedCountry, setSelectedCountry] = useState("All")
   const [selectedCity, setSelectedCity] = useState("All")
@@ -508,6 +510,50 @@ export default function ResortsPage() {
                         Explore
                         <X className="h-4 w-4 rotate-180" />
                       </button>
+                      
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation() // Prevent card click
+                          
+                          // Only pass to map if coordinates exist
+                          const hasCoordinates = (resort.latitude && resort.longitude) ||
+                                            (resort.lat && resort.lng) ||
+                                            (resort.coordinates)
+                          
+                          if (!hasCoordinates) {
+                            console.warn('Resort missing coordinates:', resort.name)
+                            console.log('Available fields:', Object.keys(resort))
+                            
+                            // Show modal with user-friendly message
+                            setModalMessage(`Map coordinates are not available for "${resort.name}". This resort cannot be displayed on the map.`)
+                            setShowCoordinateModal(true)
+                            return
+                          }
+                          
+                          // Pass resort data to map with coordinates
+                          const mapData = {
+                            id: resort.id,
+                            name: resort.name,
+                            latitude: resort.latitude || resort.lat || (resort.coordinates ? resort.coordinates.split(',')[0] : ''),
+                            longitude: resort.longitude || resort.lng || (resort.coordinates ? resort.coordinates.split(',')[1] : ''),
+                            type: 'resort',
+                            address: resort.address,
+                            city: resort.city,
+                            country: resort.country,
+                            star_rating: resort.star_rating,
+                            price_per_night: resort.price_per_night,
+                            amenities: resort.amenities,
+                            images: resort.images
+                          }
+                          // Store in sessionStorage for map to use
+                          sessionStorage.setItem('mapFocusLocation', JSON.stringify(mapData))
+                          router.push('/map')
+                        }} 
+                        className="w-full flex items-center justify-center gap-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${getTextThemeClasses()} hover:bg-muted"
+                      >
+                        <Map className="h-4 w-4" />
+                        View on Map
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -571,6 +617,46 @@ export default function ResortsPage() {
         destinationId={bookingSheet.resortId}
         destinationName={bookingSheet.resortName}
       />
+
+      {/* Coordinates Missing Modal */}
+      {showCoordinateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className={`mx-4 max-w-md rounded-lg border p-6 ${getCardThemeClasses()}`}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                <MapPin className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div>
+                <h3 className={`text-lg font-semibold ${getTextThemeClasses()}`}>
+                  Map Location Unavailable
+                </h3>
+              </div>
+            </div>
+            
+            <p className={`${getTextThemeClasses()} mb-6`}>
+              {modalMessage}
+            </p>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCoordinateModal(false)}
+                className={`flex-1 rounded-lg border px-4 py-2 font-medium transition-colors ${getTextThemeClasses()} hover:bg-muted`}
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setShowCoordinateModal(false)
+                  router.push('/resorts')
+                }}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                Browse Other Resorts
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
